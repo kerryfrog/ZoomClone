@@ -1,7 +1,7 @@
 //npm run dev
 import http from "http";
 import express from "express";
-import WebSocket  from "ws";
+import SocketIO from "socket.io";
 
 //  __dirname : 현재 실행중인 폴더 경로 
 const app =express();
@@ -22,10 +22,26 @@ const handleListen =() => console.log(`Listenning on http://localhost:3000`);
 
 ///http server , web socket server 둘다 사용가능 
 //http server
-const server = http.createServer(app);
+const httpServer = http.createServer(app);
+const wsServer = SocketIO(httpServer);
 
+wsServer.on("connection", socket => {
+    //socket 에서 일어나는 일을 log 찍을 수 있음 일종의 미들웨어 
+    socket.onAny((event) => {
+        console.log(`socket Event:${event}`)
+    })
+    socket.on("enter_room", (roomName, done) =>{            
+        socket.join(roomName);
+        done();
+        socket.to(roomName).emit("welcome");
+    });
+}); //end wsServer.on
+
+httpServer.listen(3000, handleListen);
+/*
 //wev socket server 생성 http server 위에 생성 
 const wss = new WebSocket.Server({server});
+
 
 const sockets =[];
 
@@ -54,5 +70,4 @@ wss.on("connection", (socket)=>{
     });
 });
 
-server.listen(3000, handleListen);
-
+*/

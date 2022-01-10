@@ -1,52 +1,40 @@
-//Front end File 
-const messageList = document.querySelector("ul");
-const nickForm = document.querySelector("#nick");
-const messageForm = document.querySelector("#message");
+//front end에 socket 설치 
+const socket = io();
 
-//back 과의 연결을 해줌요 
-const socket = new WebSocket(`ws://${window.location.host}`);
+const welcome = document.getElementById("welcome")
+const form = welcome.querySelector("form");
+const room = document.getElementById("room");
 
-//object into string 
-function makeMessage(type , payload){
-    const msg ={type, payload};
-    return JSON.stringify(msg);
-}
+room.hidden = true;
+let roomName;
 
-
-//브라우저의 action을 감지 
-socket.addEventListener("open",()=>{
-    console.log("connected to Server O");
-});
-
-socket.addEventListener("message",(message)=>{
+function addMessage(message){
+    const ul = room.querySelector("ul");
     const li = document.createElement("li");
-    li.innerText = message.data.toString("utf8");
-    messageList.append(li);
-})
+    li.innerText = message;
+    ul.appendChild(li);
+}
 
-socket.addEventListener("close", ()=>{
-    console.log("DisConnected from Server X")
+function backendDone(msg){
+    console.log(`The backend says:`,msg);
+}
+
+function showRoom(){
+    welcome.hidden = true;
+    room.hidden = false;
+    const h3 = room.querySelector("h3"); 
+    h3.innerText =`Room: ${roomName}`;
+}
+
+function handleRoomSubmit(event){
+    event.preventDefault();
+    const input = form.querySelector("input");
+    socket.emit("enter_room", input.value,showRoom); // end socket.emit
+    roomName = input.value;
+    input.value =""
+}
+form.addEventListener("submit", handleRoomSubmit);
+
+socket.on("welcome", () =>{
+    addMessage("someone joined");
 });
-
-
-function handleSubmit(event){
-    event.preventDefault();
-    const input = messageForm.querySelector("input");
-    // backend 에게 보냄 
-    socket.send(makeMessage("new_message", input.value));
-    const li = document.createElement("li");
-    li.innerText = `You: ${input.value}`
-    messageList.append(li);
-    input.value="";
-}
-
-function handleNickSubmit(event){
-    event.preventDefault();
-    const input = nickForm.querySelector("input");
-    socket.send(makeMessage("nickname", input.value));
-    input.value="";
-}
-
-messageForm.addEventListener("submit", handleSubmit);
-
-nickForm.addEventListener("submit",handleNickSubmit);
