@@ -25,6 +25,18 @@ const handleListen =() => console.log(`Listenning on http://localhost:3000`);
 const httpServer = http.createServer(app);
 const wsServer = SocketIO(httpServer);
 
+function publicRooms(){
+    const sids = wsServer.sockets.adapter.sids;
+    const rooms = wsServer.sockets.adapter.rooms;
+    const publicRooms = [];
+    rooms.forEach( (_,key) => {
+        if(sids.get(key) ===undefined){
+            publicRooms.push(key);
+        }
+    }); 
+    return publicRooms;
+}
+
 wsServer.on("connection", socket => {
     //socket 에서 일어나는 일을 log 찍을 수 있음 일종의 미들웨어 
     socket["nickname"] ="Anon";
@@ -35,10 +47,15 @@ wsServer.on("connection", socket => {
         socket.join(roomName);
         done();
         socket.to(roomName).emit("welcome", socket.nickname);
+        wsServer.sockets.emit("room_change", publicRooms());
+
     });
     socket.on("disconnecting", () =>{
         socket.rooms.forEach((room) =>socket.to(room).emit("bye",socket.nickname));
     });
+    socket.on("disconnect",()=>{
+        wsServer.sockets.emit("room_change", publicRooms());
+    } )
     socket.on("new_message",(msg, room, done)=> {
         socket.to(room).emit("new_message", `${socket.nickname}: ${msg}`);
         done();

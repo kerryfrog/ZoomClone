@@ -56,7 +56,7 @@ function handleRoomSubmit(event){
     const input = roomform.querySelector("#enter input");
     socket.emit("enter_room", input.value, showRoom); // end socket.emit
     roomName = input.value;
-    input.value =""
+    input.value ="" 
 }
 
 roomform.addEventListener("submit", handleRoomSubmit);
@@ -71,3 +71,19 @@ socket.on("bye",(left)=> {
 })
 
 socket.on("new_message", addMessage);
+
+//socket.on("room_change", console.log);
+// 아래와 동일 
+socket.on("room_change", (rooms) =>{
+    const roomList = welcome.querySelector("ul");
+    if(rooms.length ===0){
+        roomList.innerHTML ="";
+        return;
+    }
+    
+    rooms.forEach(room=>{
+        const li =document.createElement("li");
+        li.innerText = room;
+        roomList.append(li);
+    });
+});
