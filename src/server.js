@@ -1,7 +1,8 @@
 //npm run dev
 import http from "http";
 import express from "express";
-import SocketIO from "socket.io";
+import {Server} from "socket.io";
+import { instrument } from "@socket.io/admin-ui";
 
 //  __dirname : 현재 실행중인 폴더 경로 
 const app =express();
@@ -23,7 +24,16 @@ const handleListen =() => console.log(`Listenning on http://localhost:3000`);
 ///http server , web socket server 둘다 사용가능 
 //http server
 const httpServer = http.createServer(app);
-const wsServer = SocketIO(httpServer);
+const wsServer = new Server(httpServer,{
+    cors: {
+        origin: ["https://admin.socket.io"],
+        credentials: true,
+    },
+});
+
+instrument(wsServer, {
+    auth:false
+});
 
 function publicRooms(){
     const sids = wsServer.sockets.adapter.sids;
@@ -37,6 +47,10 @@ function publicRooms(){
     return publicRooms;
 }
 
+function countRoom(roomName){
+    // ? 는 값이 없을 때도 있기 때문이라고 ..
+    return wsServer.sockets.adapter.rooms.get(roomName)?.size;
+}
 wsServer.on("connection", socket => {
     //socket 에서 일어나는 일을 log 찍을 수 있음 일종의 미들웨어 
     socket["nickname"] ="Anon";
@@ -46,13 +60,16 @@ wsServer.on("connection", socket => {
     socket.on("enter_room", (roomName, done) =>{            
         socket.join(roomName);
         done();
-        socket.to(roomName).emit("welcome", socket.nickname);
+        socket.to(roomName).emit("welcome", socket.nickname, countRoom(roomName));
         wsServer.sockets.emit("room_change", publicRooms());
-
     });
+    // 방을 퇴장하기 바로 직전
     socket.on("disconnecting", () =>{
-        socket.rooms.forEach((room) =>socket.to(room).emit("bye",socket.nickname));
+        socket.rooms.forEach((room) =>
+            socket.to(room).emit("bye", socket.nickname, countRoom(room)-1)
+        );
     });
+    //방을 퇴장 
     socket.on("disconnect",()=>{
         wsServer.sockets.emit("room_change", publicRooms());
     } )
@@ -64,6 +81,7 @@ wsServer.on("connection", socket => {
 }); //end wsServer.on
 
 httpServer.listen(3000, handleListen);
+
 /*
 //wev socket server 생성 http server 위에 생성 
 const wss = new WebSocket.Server({server});
